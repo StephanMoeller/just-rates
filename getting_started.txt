@@ -1,0 +1,2 @@
+Run tests with: cargo nextest run
+(Install on windows using this powershell script listed here: https://nexte.st/book/pre-built-binaries.html)

@@ -1,62 +1,48 @@
-use std::net::{UdpSocket};
+use std::net::{SocketAddr, UdpSocket};
 use std::str;
 
 const BUFFER_SIZE: usize = 10000;
-const CLIENT_CHECK_STATUS: &str = "CHECK STATUS";
 
-const SERVER_STATUS_ACTIVE: &str = "STATUS ACTIVE"; // <= Returned if a consumer recently queried for data
-const SERVER_STATUS_IDLE: &str = "STATUS IDLE"; // <= Returned if not client has requested data for some time. This way the producers can stop sending and save resources.
+// Protocol
 
-pub fn run(local_socket: UdpSocket) -> std::io::Result<()>
-{
-    let mut buffer: [u8; 10000] = [0; BUFFER_SIZE];
+pub fn run(local_socket: UdpSocket) -> std::io::Result<()> {
+    // Protocol messages - stores as byte array s
     
-    // Create ready-to-use buffers containing standard replies for performance
-    let status_active_reply_bytes: &[u8] = SERVER_STATUS_ACTIVE.as_bytes();
-    let status_idle_reply_bytes: &[u8] = SERVER_STATUS_IDLE.as_bytes();
+    let mut buffer: [u8; 10000] = [0; BUFFER_SIZE];
 
-    loop
-    {
-        match local_socket.recv_from(&mut buffer) {
-            Ok((byte_count, src)) => {
-                let received_bytes = &mut buffer[..byte_count];
-
-                match str::from_utf8(&received_bytes) {
-                    Ok(str) => {
-                        if str.eq(CLIENT_CHECK_STATUS) {
-                            let is_active = true; // <= Base this on whether a client has polled for data recently
-                            if is_active
-                            {
-                                local_socket.send(status_active_reply_bytes)?; // <= ? ensures fail of entire function if sending fails
-                            }else{
-                                local_socket.send(status_idle_reply_bytes)?; // <= ? ensures fail of entire function if sending fails
-                            }
-                            // Renew subscription
-                        }else{
-                            // Remove all expired subscribers (clients who havent sent a SUBSCRIBE message for a while)
-                            // Send an UNSUBSCRIBED message to these clients for them to react in case they did not expect this
-                            // TODO: Send to all subscribed clients
-                            received_bytes.reverse();
-                            local_socket.send_to(&received_bytes, &src)?; // <= ? ensures fail of entire function if sending fails
-                        }
-                    },
-                    Err(err) => {
-                        println!("Utf8 parse error: {err} when parsingreceived  bytes: {:?}", &received_bytes);
-                    }
-                }
-
-                // Else:
-                    // Iterate all subscribers
-                        // If subscriber is recent => send received bytes to subscriber
-                        // Else remove subscriber
-
+    loop {
+        let (byte_count, client) = local_socket.recv_from(&mut buffer)?; // <If this fails, let entire flow fail.
+        let received_bytes = &mut buffer[..byte_count];
+        
+        // Validate bytes as valid utf8
+        let valid_utf_string = match str::from_utf8(&received_bytes) {
+            Ok(str) => str,
+            Err(err) => {
+                reply_with_error("Invalid utf8 bytes. Error details: ".to_string() + &err.to_string(), &client, &local_socket);
+                continue; // Return loop to the top
             }
-            Err(err_msg) => {
-                println!("APP Error receiving: {err_msg}");
-                break;
+        };
+
+        let first_word = "TODO...";
+
+        // Process message type and get data body if any
+        let data = match first_word
+        {
+            "DATA" => valid_utf_string[4..].to_string(), // Gets all bytes after "DATA". This works on bytes but the word "DATA" contains only 1-byte characters and hence is safe to use here.
+            "SHOULD_I_SEND" => {
+                // Reply with PLEASE_SEND or PLEASE_SLEEP
+                continue;
             },
-        }
+            _ => {
+                reply_with_error("Unexpected protocol message starting with ".to_string() + first_word, &client, &local_socket);
+                continue;
+            }
+        };
     }
 
     return Ok(());
+}
+
+fn reply_with_error(error_details: String, client: &SocketAddr, local_socket: &UdpSocket) {
+    // TODO: Reuse some byte buffer
 }

@@ -1,3 +1,5 @@
+use std::net::UdpSocket;
+
 extern crate ctrlc;
 mod app;
 
@@ -8,6 +10,7 @@ fn main() -> std::io::Result<()> {
         println!("Bye bye");
         std::process::exit(0x0100);
     }).expect("Error setting ctrlc handler");
-    
-    return app::run(&String::from("127.0.0.1:34254"));
+
+    let local_socket = UdpSocket::bind(&String::from("127.0.0.1:34254")).unwrap();
+    return app::run(local_socket);
 }

@@ -1,0 +1,2 @@
+- Definer protocol for indgående trafik (UDP)
+- Definer kommunikationsform for subscribers (TCP? Http/Ajax?)

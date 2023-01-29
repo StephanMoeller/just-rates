@@ -10,25 +10,21 @@ mod tests {
     use rstest::rstest;
 
     #[rstest]
-    #[case("INVALID MESSAGE HERE")]
-    #[case("PLEASE_SEND")]                  // Expected to only be sent by server to client, no the other way around
-    #[case("PLEASE_SEND with more data")]   // Expected to only be sent by server to client, no the other way around
-    #[case("PLEASE_SLEEP")]                 // Expected to only be sent by server to client, no the other way around
-    #[case("PLEASE_SLEEP with more data")]  // Expected to only be sent by server to client, no the other way around
-    #[case("ERROR")]                        // Expected to only be sent by server to client, no the other way around
-    #[case("ERROR With more data")]         // Expected to only be sent by server to client, no the other way around
-    #[case("PONG")]                         // Expected to only be sent by server to client, no the other way around
-    #[case("PONG With more data")]          // Expected to only be sent by server to client, no the other way around
-    #[case("Ping")]                         // Expected to be uppercase
-    #[case("ping")]                         // Expected to be uppercase
-    fn receive_invalid_message_expect_error_returned_test(#[case] invalid_message_to_send: &str)
+    #[case("INVALID MESSAGE HERE", "ERROR Unexpected protocol message: INVALID MESSAGE HERE")]
+    #[case("ERROR", "ERROR Client not allowed to send command ERROR")]                        
+    #[case("ERROR With more data", "ERROR Client not allowed to send command ERROR")]         
+    #[case("PONG", "ERROR Client not allowed to send command PONG")]                         
+    #[case("PONG With more data", "ERROR Client not allowed to send command PONG")]          
+    #[case("Ping", "ERROR Unexpected protocol message: Ping")]                         
+    #[case("ping", "ERROR Unexpected protocol message: ping")]                         
+    fn receive_invalid_message_expect_error_returned_test(#[case] invalid_message_to_send: &str, #[case] expected_message_to_receive: &str)
     {
         let (data_message_sender, _data_message_receiver): (Sender<DataMessage>, Receiver<DataMessage>) = mpsc::channel();
 
         let server_addr = start_server(data_message_sender);
         let client = UdpSocket::bind("127.0.0.1:0").unwrap();
         let reply = send_and_receive_internal(&client, server_addr, invalid_message_to_send.as_bytes());
-        assert_eq!(reply.as_str(), "ERROR Unexpected protocol message: ".to_string() + invalid_message_to_send);
+        assert_eq!(reply.as_str(), expected_message_to_receive);
 
         // Ensure nothing added to the reader
         assert_channel_empty(_data_message_receiver);

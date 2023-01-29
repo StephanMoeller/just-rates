@@ -39,6 +39,10 @@ pub fn create_publish_listener(local_socket: UdpSocket, _data_message_sender: Se
                 send_reply_to_client("PONG".to_string(), &client_addr, &local_socket)?;
                 continue;
             },
+            "PONG" | "ERROR" => {
+                send_reply_to_client("ERROR Client not allowed to send command ".to_string() + command, &client_addr, &local_socket)?;
+                continue;
+            }
             _ => {
                 send_reply_to_client("ERROR Unexpected protocol message: ".to_string() + valid_utf_string, &client_addr, &local_socket)?;
                 continue; // Return loop to the top

@@ -25,10 +25,14 @@ pub fn create_publish_listener(local_socket: UdpSocket, _data_message_sender: Se
             }
         };
 
-        let first_word = "TODO...";
+        // Extract first word and interpret as command
+        let command = match valid_utf_string.find(' ') {
+            Some(index) => valid_utf_string.split_at(index).0,
+            None => valid_utf_string
+        };
 
         // Process message type and get data body if any
-        let _data_body = match first_word
+        let _data_body = match command
         {
             "DATA" => valid_utf_string[4..].to_string(), // Gets all bytes after "DATA". This works on bytes but the word "DATA" contains only 1-byte characters and hence is safe to use here.
             "PING" => {

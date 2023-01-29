@@ -4,8 +4,7 @@ use std::sync::mpsc::{Sender, Receiver};
 use rust_just_rates::app::{DataMessage};
 use std::str;
 use std::{
-    net::{SocketAddr, UdpSocket},
-    thread::JoinHandle,
+    net::{SocketAddr, UdpSocket}
 };
 
 pub fn send_and_receive_internal(

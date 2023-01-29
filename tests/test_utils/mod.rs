@@ -1,6 +1,6 @@
 
 use rust_just_rates::app;
-use std::sync::mpsc::{Sender};
+use std::sync::mpsc::{Sender, Receiver};
 use rust_just_rates::app::{DataMessage};
 use std::str;
 use std::{
@@ -8,7 +8,7 @@ use std::{
     thread::JoinHandle,
 };
 
-pub fn util_send_and_receive_internal(
+pub fn send_and_receive_internal(
     client: &UdpSocket,
     server_addr: SocketAddr,
     data_to_send: &[u8],
@@ -21,13 +21,20 @@ pub fn util_send_and_receive_internal(
     return String::from(str_value);
 }
 
-pub fn util_start_server(data_message_sender: Sender<DataMessage>) -> (JoinHandle<()>, SocketAddr) {
+pub fn start_server(data_message_sender: Sender<DataMessage>) -> SocketAddr {
     
     let server_socket = UdpSocket::bind("127.0.0.1:0").unwrap();
     let server_addr = server_socket.local_addr().unwrap();
     println!("SERVER ADDRESS: {}", server_addr);
-    let app_thread = std::thread::spawn(move || {
+    let _app_thread = std::thread::spawn(move || {
         app::create_publish_listener(server_socket, data_message_sender).unwrap();
     });
-    return (app_thread, server_addr);
+    return server_addr;
+}
+
+pub fn assert_channel_empty<T>(reader: Receiver<T>) {
+    match reader.try_recv(){
+        Ok(_) => {panic!("Expected timeout as a sign that nothing was added to the channel based on an invalid message received")},
+        Err(_) => {}
+    }
 }

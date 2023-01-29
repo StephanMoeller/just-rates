@@ -15,6 +15,7 @@ mod tests {
     #[case("ERROR With more data", "ERROR Client not allowed to send command ERROR")]         
     #[case("PONG", "ERROR Client not allowed to send command PONG")]                         
     #[case("PONG With more data", "ERROR Client not allowed to send command PONG")]          
+    #[case("PING With more data", "ERROR Unexpected payload for command PING: With more data")]          
     #[case("Ping", "ERROR Unexpected protocol message: Ping")]                         
     #[case("ping", "ERROR Unexpected protocol message: ping")]                         
     fn receive_invalid_message_expect_error_returned_test(#[case] invalid_message_to_send: &str, #[case] expected_message_to_receive: &str)

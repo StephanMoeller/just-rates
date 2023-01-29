@@ -26,17 +26,27 @@ pub fn create_publish_listener(local_socket: UdpSocket, _data_message_sender: Se
         };
 
         // Extract first word and interpret as command
-        let command = match valid_utf_string.find(' ') {
-            Some(index) => valid_utf_string.split_at(index).0,
-            None => valid_utf_string
+        let (command, payload) = match valid_utf_string.find(' ') {
+            Some(index) => valid_utf_string.split_at(index),
+            None => (valid_utf_string, "")
         };
 
         // Process message type and get data body if any
         let _data_body = match command
         {
-            "DATA" => valid_utf_string[4..].to_string(), // Gets all bytes after "DATA". This works on bytes but the word "DATA" contains only 1-byte characters and hence is safe to use here.
+            "DATA" => {
+                // Parse data to DataMessage.
+                // => If success, add to channel sender
+                // => If error, return error to client
+            },
             "PING" => {
-                send_reply_to_client("PONG".to_string(), &client_addr, &local_socket)?;
+                let has_payload = payload.len() > 0;
+                if has_payload {
+                    send_reply_to_client("ERROR Unexpected payload for command PING:".to_string() + &payload, &client_addr, &local_socket)?;    
+                }else{
+                    send_reply_to_client("PONG".to_string(), &client_addr, &local_socket)?;
+                }
+                
                 continue;
             },
             "PONG" | "ERROR" => {

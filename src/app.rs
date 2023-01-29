@@ -32,7 +32,7 @@ pub fn create_publish_listener(local_socket: UdpSocket, _data_message_sender: Se
         };
 
         // Process message type and get data body if any
-        let _data_body = match command
+        match command
         {
             "DATA" => {
                 // Parse data to DataMessage.
@@ -58,11 +58,6 @@ pub fn create_publish_listener(local_socket: UdpSocket, _data_message_sender: Se
                 continue; // Return loop to the top
             }
         };
-
-        // TODO: Validate expected number of parts in data
-        // Extract from, to and counter
-        // Update some data structure with the new data
-        // Done.
     }
 }
 

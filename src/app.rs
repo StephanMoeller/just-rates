@@ -26,8 +26,11 @@ pub fn create_publish_listener(local_socket: UdpSocket, _data_message_sender: Se
         };
 
         // Extract first word and interpret as command
-        let (command, payload) = match valid_utf_string.find(' ') {
-            Some(index) => valid_utf_string.split_at(index),
+        let (command, payload_or_empty) = match valid_utf_string.find(' ') {
+            Some(index) => {
+                let (first_part, second_part) = valid_utf_string.split_at(index);
+                (first_part, &second_part[1..]) // Skipping the first space in the beginning of the payload
+            },
             None => (valid_utf_string, "")
         };
 
@@ -35,14 +38,18 @@ pub fn create_publish_listener(local_socket: UdpSocket, _data_message_sender: Se
         match command
         {
             "DATA" => {
+                if payload_or_empty.len() == 0 {
+                    send_reply_to_client("ERROR Empty payload received after a DATA command which is not valid.".to_string(), &client_addr, &local_socket)?;    
+                }
+                continue;
                 // Parse data to DataMessage.
                 // => If success, add to channel sender
                 // => If error, return error to client
             },
             "PING" => {
-                let has_payload = payload.len() > 0;
+                let has_payload = payload_or_empty.len() > 0;
                 if has_payload {
-                    send_reply_to_client("ERROR Unexpected payload for command PING:".to_string() + &payload, &client_addr, &local_socket)?;    
+                    send_reply_to_client("ERROR Unexpected payload for command PING: ".to_string() + &payload_or_empty, &client_addr, &local_socket)?;    
                 }else{
                     send_reply_to_client("PONG".to_string(), &client_addr, &local_socket)?;
                 }
@@ -54,7 +61,7 @@ pub fn create_publish_listener(local_socket: UdpSocket, _data_message_sender: Se
                 continue;
             }
             _ => {
-                send_reply_to_client("ERROR Unexpected protocol message: ".to_string() + valid_utf_string, &client_addr, &local_socket)?;
+                send_reply_to_client("ERROR Unexpected protocol command: ".to_string() + valid_utf_string, &client_addr, &local_socket)?;
                 continue; // Return loop to the top
             }
         };

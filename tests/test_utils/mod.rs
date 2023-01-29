@@ -1,5 +1,7 @@
 
 use rust_just_rates::app;
+use std::sync::mpsc::{Sender};
+use rust_just_rates::app::{DataMessage};
 use std::str;
 use std::{
     net::{SocketAddr, UdpSocket},
@@ -20,12 +22,13 @@ pub fn util_send_and_receive_internal(
     return String::from(str_value);
 }
 
-pub fn util_start_server() -> (JoinHandle<()>, SocketAddr) {
+pub fn util_start_server(data_message_sender: Sender<DataMessage>) -> (JoinHandle<()>, SocketAddr) {
+    
     let server_socket = UdpSocket::bind("127.0.0.1:0").unwrap();
     let server_addr = server_socket.local_addr().unwrap();
     println!("SERVER ADDRESS: {}", server_addr);
     let app_thread = std::thread::spawn(move || {
-        app::run(server_socket).unwrap();
+        app::create_publish_listener(server_socket, data_message_sender).unwrap();
     });
     return (app_thread, server_addr);
 }

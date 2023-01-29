@@ -1,11 +1,13 @@
 use std::net::{SocketAddr, UdpSocket};
 use std::str;
+use std::sync::mpsc::{Sender, Receiver};
+use std::net::TcpListener;
 
 const BUFFER_SIZE: usize = 10000;
 
 // Protocol
 
-pub fn run(local_socket: UdpSocket) -> std::io::Result<()> {
+pub fn create_publish_listener(local_socket: UdpSocket, _data_message_sender: Sender<DataMessage>) -> std::io::Result<()> {
     // Protocol messages - stores as byte array s
     
     let mut buffer: [u8; 10000] = [0; BUFFER_SIZE];
@@ -26,23 +28,32 @@ pub fn run(local_socket: UdpSocket) -> std::io::Result<()> {
         let first_word = "TODO...";
 
         // Process message type and get data body if any
-        let data = match first_word
+        let _data_body = match first_word
         {
             "DATA" => valid_utf_string[4..].to_string(), // Gets all bytes after "DATA". This works on bytes but the word "DATA" contains only 1-byte characters and hence is safe to use here.
             "SHOULD_I_SEND" => {
                 // Reply with PLEASE_SEND or PLEASE_SLEEP
-                continue;
+                continue; // Return loop to the top
             },
             _ => {
                 reply_with_error("Unexpected protocol message starting with ".to_string() + first_word, &client, &local_socket);
-                continue;
+                continue; // Return loop to the top
             }
         };
-    }
 
-    return Ok(());
+        // TODO: Validate expected number of parts in data
+        // Extract from, to and counter
+        // Update some data structure with the new data
+        // Done.
+    }
 }
 
-fn reply_with_error(error_details: String, client: &SocketAddr, local_socket: &UdpSocket) {
+pub fn create_consumer_endpoint(_local_tcp_listener: TcpListener, _data_message_reader: Receiver<DataMessage>){
+
+}
+
+fn reply_with_error(_error_details: String, _client: &SocketAddr, _local_socket: &UdpSocket) {
     // TODO: Reuse some byte buffer
 }
+
+pub struct DataMessage{}

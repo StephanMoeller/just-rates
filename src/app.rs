@@ -20,7 +20,7 @@ pub fn create_publish_listener(local_socket: UdpSocket, _data_message_sender: Se
         let valid_utf_string = match str::from_utf8(&received_bytes) {
             Ok(str) => str,
             Err(err) => {
-                reply_with_error("Invalid utf8 bytes. Error details: ".to_string() + &err.to_string(), &client, &local_socket);
+                reply_with_error("Invalid utf8 bytes. Error details: ".to_string() + &err.to_string(), &client, &local_socket)?;
                 continue; // Return loop to the top
             }
         };
@@ -36,7 +36,7 @@ pub fn create_publish_listener(local_socket: UdpSocket, _data_message_sender: Se
                 continue; // Return loop to the top
             },
             _ => {
-                reply_with_error("Unexpected protocol message starting with ".to_string() + first_word, &client, &local_socket);
+                reply_with_error("Unexpected protocol message: ".to_string() + valid_utf_string, &client, &local_socket)?;
                 continue; // Return loop to the top
             }
         };
@@ -52,8 +52,11 @@ pub fn create_consumer_endpoint(_local_tcp_listener: TcpListener, _data_message_
 
 }
 
-fn reply_with_error(_error_details: String, _client: &SocketAddr, _local_socket: &UdpSocket) {
-    // TODO: Reuse some byte buffer
+fn reply_with_error(error_details: String, client_addr: &SocketAddr, local_socket: &UdpSocket) -> std::io::Result<()> {
+    let mut error_msg = "ERROR ".to_string();
+    error_msg.push_str(&error_details.as_str());
+    local_socket.send_to(error_msg.as_bytes(), client_addr)?;
+    return Ok(());
 }
 
 pub struct DataMessage{}

@@ -3,6 +3,7 @@ mod test_utils;
 #[cfg(test)]
 mod tests {
     use crate::test_utils::*;
+    use core::panic;
     use std::sync::mpsc::{Sender, Receiver};
     use std::sync::mpsc;
     use rust_just_rates::app::{DataMessage};
@@ -59,5 +60,17 @@ mod tests {
         let reply = send_and_receive_internal(&client_socket, server_addr, "PING".as_bytes());
         assert_eq!("PONG", reply.as_str());
         assert_channel_empty(_data_message_receiver);
+    }
+
+    #[test]
+    fn data_error_parsing_expect_error_returned_and_nothing_added_to_channel_test()
+    {
+        panic!("TODO");
+    }
+    
+    #[test]
+    fn data_expect_message_ended_up_in_channel_test()
+    {
+        panic!("TODO");
     }
 }

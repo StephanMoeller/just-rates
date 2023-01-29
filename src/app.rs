@@ -20,7 +20,7 @@ pub fn create_publish_listener(local_socket: UdpSocket, _data_message_sender: Se
         let valid_utf_string = match str::from_utf8(&received_bytes) {
             Ok(str) => str,
             Err(err) => {
-                reply_with_error("Invalid utf8 bytes. Error details: ".to_string() + &err.to_string(), &client, &local_socket)?;
+                send_reply_to_client("ERROR Invalid utf8 bytes. Error details: ".to_string() + &err.to_string(), &client, &local_socket)?;
                 continue; // Return loop to the top
             }
         };
@@ -31,12 +31,8 @@ pub fn create_publish_listener(local_socket: UdpSocket, _data_message_sender: Se
         let _data_body = match first_word
         {
             "DATA" => valid_utf_string[4..].to_string(), // Gets all bytes after "DATA". This works on bytes but the word "DATA" contains only 1-byte characters and hence is safe to use here.
-            "SHOULD_I_SEND" => {
-                // Reply with PLEASE_SEND or PLEASE_SLEEP
-                continue; // Return loop to the top
-            },
             _ => {
-                reply_with_error("Unexpected protocol message: ".to_string() + valid_utf_string, &client, &local_socket)?;
+                send_reply_to_client("ERROR Unexpected protocol message: ".to_string() + valid_utf_string, &client, &local_socket)?;
                 continue; // Return loop to the top
             }
         };
@@ -52,10 +48,8 @@ pub fn create_consumer_endpoint(_local_tcp_listener: TcpListener, _data_message_
 
 }
 
-fn reply_with_error(error_details: String, client_addr: &SocketAddr, local_socket: &UdpSocket) -> std::io::Result<()> {
-    let mut error_msg = "ERROR ".to_string();
-    error_msg.push_str(&error_details.as_str());
-    local_socket.send_to(error_msg.as_bytes(), client_addr)?;
+fn send_reply_to_client(message: String, client_addr: &SocketAddr, local_socket: &UdpSocket) -> std::io::Result<()> {
+    local_socket.send_to(message.as_bytes(), client_addr)?;
     return Ok(());
 }
 

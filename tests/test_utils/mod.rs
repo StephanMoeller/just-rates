@@ -11,10 +11,9 @@ use std::{
 pub fn util_send_and_receive_internal(
     client: &UdpSocket,
     server_addr: SocketAddr,
-    data_to_send: &str,
+    data_to_send: &[u8],
 ) -> String {
-    let bytes = data_to_send.as_bytes(); // Gives utf8 bytes
-    client.send_to(bytes, server_addr).unwrap();
+    client.send_to(data_to_send, server_addr).unwrap();
 
     let mut buffer: [u8; 1000] = [0; 1000];
     let (amt, _src) = client.recv_from(&mut buffer).unwrap();

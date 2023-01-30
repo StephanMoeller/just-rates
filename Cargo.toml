@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 ctrlc = "3.2.4"
 log = "0.4.17"
-simple_websockets = "*"
+simple-websockets = "*"
 
 [dev-dependencies]
 rstest = "0.16.0"

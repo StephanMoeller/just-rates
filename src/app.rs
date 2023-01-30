@@ -1,15 +1,12 @@
 use std::net::{SocketAddr, UdpSocket};
 use std::str;
-use std::sync::mpsc::{Sender, Receiver};
-use std::net::TcpListener;
 
 const BUFFER_SIZE: usize = 10000;
 
 // Protocol
 
-pub fn create_publish_listener(local_socket: UdpSocket, data_message_sender: Sender<DataMessage>) -> std::io::Result<()> {
-    // Protocol messages - stores as byte array s
-    
+pub fn read_next_publisher_data_message(local_socket: &UdpSocket) -> std::io::Result<PublisherMessage> {
+    // TODO: Solve reuse of this buffer
     let mut buffer: [u8; 10000] = [0; BUFFER_SIZE];
 
     loop {
@@ -41,14 +38,7 @@ pub fn create_publish_listener(local_socket: UdpSocket, data_message_sender: Sen
                 if payload_or_empty.len() == 0 {
                     send_reply_to_client("ERROR Empty payload received after a DATA command which is not valid.".to_string(), &client_addr, &local_socket)?;    
                 }else{
-                    let send_result = data_message_sender.send(DataMessage{ payload: payload_or_empty.to_string() });
-                    match send_result {
-                        Ok(()) => {},
-                        Err(err) => {
-                            println!("ERROR Internal error. {err}");
-                            send_reply_to_client("ERROR Internal error. ".to_string() + &err.to_string(), &client_addr, &local_socket)?;    
-                        }
-                    }
+                    return Ok(PublisherMessage{ payload: payload_or_empty.to_string() });
                 }
                 continue;
                 // Parse data to DataMessage.
@@ -77,15 +67,11 @@ pub fn create_publish_listener(local_socket: UdpSocket, data_message_sender: Sen
     }
 }
 
-pub fn create_consumer_endpoint(_local_tcp_listener: TcpListener, _data_message_reader: Receiver<DataMessage>){
-
-}
-
 fn send_reply_to_client(message: String, client_addr: &SocketAddr, local_socket: &UdpSocket) -> std::io::Result<()> {
     local_socket.send_to(message.as_bytes(), client_addr)?;
     return Ok(());
 }
 
-pub struct DataMessage{
+pub struct PublisherMessage{
     pub payload: String
 }

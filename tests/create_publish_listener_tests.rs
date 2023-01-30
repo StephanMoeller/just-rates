@@ -5,7 +5,7 @@ mod tests {
     use crate::test_utils::*;
     use std::sync::mpsc::{Sender, Receiver};
     use std::sync::mpsc;
-    use rust_just_rates::app::{DataMessage};
+    use rust_just_rates::app::{PublisherMessage};
     use rstest::rstest;
 
     #[rstest]
@@ -22,7 +22,7 @@ mod tests {
     #[case("DATA ", "ERROR Empty payload received after a DATA command which is not valid.")]           
     fn invalid_message_expect_error_returned_test(#[case] invalid_message_to_send: &str, #[case] expected_message_to_receive: &str)
     {
-        let (data_message_sender, _data_message_receiver): (Sender<DataMessage>, Receiver<DataMessage>) = mpsc::channel();
+        let (data_message_sender, _data_message_receiver): (Sender<PublisherMessage>, Receiver<PublisherMessage>) = mpsc::channel();
         let (server_addr, client_socket) = start_server_and_create_client_socket(data_message_sender);
 
         let reply = send_and_receive_internal(&client_socket, server_addr, invalid_message_to_send.as_bytes());
@@ -35,7 +35,7 @@ mod tests {
     #[test]
     fn invalid_utf8_characters_expect_error_returned_test()
     {
-        let (data_message_sender, _data_message_receiver): (Sender<DataMessage>, Receiver<DataMessage>) = mpsc::channel();
+        let (data_message_sender, _data_message_receiver): (Sender<PublisherMessage>, Receiver<PublisherMessage>) = mpsc::channel();
 
         let (server_addr, client_socket) = start_server_and_create_client_socket(data_message_sender);
         
@@ -52,7 +52,7 @@ mod tests {
     #[test]
     fn ping_expect_pong_returned_test()
     {
-        let (data_message_sender, _data_message_receiver): (Sender<DataMessage>, Receiver<DataMessage>) = mpsc::channel();
+        let (data_message_sender, _data_message_receiver): (Sender<PublisherMessage>, Receiver<PublisherMessage>) = mpsc::channel();
 
         let (server_addr, client_socket) = start_server_and_create_client_socket(data_message_sender);
         
@@ -64,7 +64,7 @@ mod tests {
     #[test]
     fn data_expect_message_ended_up_in_channel_test()
     {
-        let (data_message_sender, data_message_receiver): (Sender<DataMessage>, Receiver<DataMessage>) = mpsc::channel();
+        let (data_message_sender, data_message_receiver): (Sender<PublisherMessage>, Receiver<PublisherMessage>) = mpsc::channel();
         let (server_addr, client_socket) = start_server_and_create_client_socket(data_message_sender);
         _ = &client_socket.send_to("DATA This is the data provided \n in multiple \n\r lines".as_bytes(), server_addr).unwrap();
         _ = &client_socket.send_to("DATA This is another message".as_bytes(), server_addr).unwrap();

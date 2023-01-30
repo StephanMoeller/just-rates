@@ -1,7 +1,7 @@
 
 use rust_just_rates::app;
 use std::sync::mpsc::{Sender, Receiver};
-use rust_just_rates::app::{DataMessage};
+use rust_just_rates::app::{PublisherMessage};
 use std::str;
 use std::{
     net::{SocketAddr, UdpSocket}
@@ -20,8 +20,7 @@ pub fn send_and_receive_internal(
     return String::from(str_value);
 }
 
-pub fn start_server_and_create_client_socket(data_message_sender: Sender<DataMessage>) -> (SocketAddr, UdpSocket) {
-    
+pub fn start_server_and_create_client_socket(data_message_sender: Sender<PublisherMessage>) -> (SocketAddr, UdpSocket) {
     let server_socket = UdpSocket::bind("127.0.0.1:0").unwrap();
     let server_addr = server_socket.local_addr().unwrap();
     println!("SERVER ADDRESS: {}", server_addr);

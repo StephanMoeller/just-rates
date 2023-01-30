@@ -1,2 +1,2 @@
-- Definer protocol for indgående trafik (UDP)
-- Definer kommunikationsform for subscribers (TCP? Http/Ajax?)
+
+- Definer kommunikationsform for subscribers (TCP? Http/Ajax?) - Benyt rest framework til pænt api?

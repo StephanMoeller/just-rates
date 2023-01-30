@@ -7,7 +7,7 @@ const BUFFER_SIZE: usize = 10000;
 
 // Protocol
 
-pub fn create_publish_listener(local_socket: UdpSocket, _data_message_sender: Sender<DataMessage>) -> std::io::Result<()> {
+pub fn create_publish_listener(local_socket: UdpSocket, data_message_sender: Sender<DataMessage>) -> std::io::Result<()> {
     // Protocol messages - stores as byte array s
     
     let mut buffer: [u8; 10000] = [0; BUFFER_SIZE];
@@ -40,6 +40,15 @@ pub fn create_publish_listener(local_socket: UdpSocket, _data_message_sender: Se
             "DATA" => {
                 if payload_or_empty.len() == 0 {
                     send_reply_to_client("ERROR Empty payload received after a DATA command which is not valid.".to_string(), &client_addr, &local_socket)?;    
+                }else{
+                    let send_result = data_message_sender.send(DataMessage{ payload: payload_or_empty.to_string() });
+                    match send_result {
+                        Ok(()) => {},
+                        Err(err) => {
+                            println!("ERROR Internal error. {err}");
+                            send_reply_to_client("ERROR Internal error. ".to_string() + &err.to_string(), &client_addr, &local_socket)?;    
+                        }
+                    }
                 }
                 continue;
                 // Parse data to DataMessage.
@@ -77,4 +86,6 @@ fn send_reply_to_client(message: String, client_addr: &SocketAddr, local_socket:
     return Ok(());
 }
 
-pub struct DataMessage{}
+pub struct DataMessage{
+    pub payload: String
+}

@@ -3,7 +3,6 @@ mod test_utils;
 #[cfg(test)]
 mod tests {
     use crate::test_utils::*;
-    use core::panic;
     use std::sync::mpsc::{Sender, Receiver};
     use std::sync::mpsc;
     use rust_just_rates::app::{DataMessage};
@@ -63,14 +62,23 @@ mod tests {
     }
 
     #[test]
-    fn data_error_parsing_expect_error_returned_and_nothing_added_to_channel_test()
-    {
-        panic!("TODO");
-    }
-    
-    #[test]
     fn data_expect_message_ended_up_in_channel_test()
     {
-        panic!("TODO");
+        let (data_message_sender, data_message_receiver): (Sender<DataMessage>, Receiver<DataMessage>) = mpsc::channel();
+        let (server_addr, client_socket) = start_server_and_create_client_socket(data_message_sender);
+        _ = &client_socket.send_to("DATA This is the data provided \n in multiple \n\r lines".as_bytes(), server_addr).unwrap();
+        _ = &client_socket.send_to("DATA This is another message".as_bytes(), server_addr).unwrap();
+
+        assert_eq!("This is the data provided \n in multiple \n\r lines", data_message_receiver.recv_timeout(std::time::Duration::from_secs(1)).unwrap().payload.as_str());
+        assert_eq!("This is another message", data_message_receiver.recv_timeout(std::time::Duration::from_secs(1)).unwrap().payload.as_str());
+
+        
+        // Sleep and ensure nothing to be received on client socket
+        let mut buffer: [u8; 10] = [0; 10];
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        match &client_socket.recv_from(&mut buffer) {
+            Ok(_) => panic!("Unexpected message received"),
+            Err(_) => {} // Expect error do occur as sending DATA should not trigger the server to reply with any message
+        }
     }
 }

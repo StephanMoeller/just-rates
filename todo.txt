@@ -1,2 +1,10 @@
 
-- Saml Event og DataMessage i een besked-type så main-tråden kan blokkere til der er ngoet at processere
+- Tilføj internalError, systemError og info events til klienten
+- Undgå allokation ved at indskyde func i udp læseren som kan skrive direkte til websockets
+- Reducer data format, så der er et dictionary og referencer til indexes i stedet. Lav data formatet til json.
+- Find passende navn
+- Stop publishers når der ikke er nogen subscribers
+- Nuget Client
+- Graph UI
+- DockerBuild
+- CancellationToken i .net client til cancel af receive-tråd ved dispose

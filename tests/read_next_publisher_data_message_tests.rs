@@ -8,7 +8,7 @@ mod tests {
     use std::str;
 
     #[rstest]
-    #[case("INVALID MESSAGE HERE", "ERROR Unexpected protocol command: INVALID MESSAGE HERE")]
+    #[case("INVALID MESSAGE HERE", "ERROR Unexpected protocol command: INVALID")]
     #[case("ERROR", "ERROR Client not allowed to send command ERROR")]                        
     #[case("ERROR With more data", "ERROR Client not allowed to send command ERROR")]         
     #[case("PONG", "ERROR Client not allowed to send command PONG")]                         

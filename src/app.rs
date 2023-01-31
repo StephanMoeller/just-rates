@@ -150,7 +150,7 @@ pub fn read_next_publisher_data_message(
         }
         _ => {
             send_reply_to_client(
-                "ERROR Unexpected protocol command: ".to_string() + valid_utf_string,
+                "ERROR Unexpected protocol command: ".to_string() + command,
                 &client_addr,
                 &local_socket,
             )?;

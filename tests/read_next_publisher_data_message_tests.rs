@@ -22,11 +22,11 @@ mod tests {
     fn invalid_message_expect_error_returned_test(#[case] invalid_message_to_send: &str, #[case] expected_message_to_receive: &str)
     {
         // Init
-        let (client_socket, server_socket) = (create_socket_with_receive_timeout(), create_socket_with_receive_timeout());
+        let (client_socket, server_socket, mut reusable_buffer) = (create_socket_with_receive_timeout(), create_socket_with_receive_timeout(), [0; 10000]);
         
         // Execute
         client_socket.send_to(invalid_message_to_send.as_bytes(), server_socket.local_addr().unwrap()).unwrap();
-        let server_process_result = app::read_next_publisher_data_message(&server_socket).unwrap();
+        let server_process_result = app::read_next_publisher_data_message(&server_socket, &mut reusable_buffer).unwrap();
         
         // Assert no new data message
         assert_eq!(true, server_process_result.is_none());
@@ -41,7 +41,7 @@ mod tests {
     fn invalid_utf8_characters_expect_error_returned_test()
     {
         // Init
-        let (client_socket, server_socket) = (create_socket_with_receive_timeout(), create_socket_with_receive_timeout());
+        let (client_socket, server_socket, mut reusable_buffer) = (create_socket_with_receive_timeout(), create_socket_with_receive_timeout(), [0; 10000]);
         let mut invalid_utf8_bytes = "DATA Something more".as_bytes().to_owned();
         invalid_utf8_bytes[6] = 147; // Invalid utf8-character
         invalid_utf8_bytes[7] = 147; // Invalid utf8-character
@@ -49,7 +49,7 @@ mod tests {
 
         // Execute
         client_socket.send_to(&invalid_utf8_bytes, server_socket.local_addr().unwrap()).unwrap();
-        let server_process_result = app::read_next_publisher_data_message(&server_socket).unwrap();
+        let server_process_result = app::read_next_publisher_data_message(&server_socket, &mut reusable_buffer).unwrap();
         
         // Assert no new data message
         assert_eq!(true, server_process_result.is_none());
@@ -64,11 +64,11 @@ mod tests {
     fn ping_expect_pong_returned_test()
     {
         // Init
-        let (client_socket, server_socket) = (create_socket_with_receive_timeout(), create_socket_with_receive_timeout());
+        let (client_socket, server_socket, mut reusable_buffer) = (create_socket_with_receive_timeout(), create_socket_with_receive_timeout(), [0; 10000]);
         
         // Execute
         client_socket.send_to("PING".as_bytes(), server_socket.local_addr().unwrap()).unwrap();
-        let server_process_result = app::read_next_publisher_data_message(&server_socket).unwrap();
+        let server_process_result = app::read_next_publisher_data_message(&server_socket, &mut reusable_buffer).unwrap();
 
         // Assert no new data message
         assert_eq!(true, server_process_result.is_none());
@@ -82,11 +82,11 @@ mod tests {
     fn data_expect_message_ended_up_in_channel_test()
     {
         // Init
-        let (client_socket, server_socket) = (create_socket_with_receive_timeout(), create_socket_with_receive_timeout());
+        let (client_socket, server_socket, mut reusable_buffer) = (create_socket_with_receive_timeout(), create_socket_with_receive_timeout(), [0; 10000]);
         
         // Execute
         client_socket.send_to("DATA This is the data provided \n in multiple \n\r lines".as_bytes(), server_socket.local_addr().unwrap()).unwrap();
-        let server_process_result = app::read_next_publisher_data_message(&server_socket).unwrap();
+        let server_process_result = app::read_next_publisher_data_message(&server_socket, &mut reusable_buffer).unwrap();
 
         // Assert data message returned
         assert_eq!(true, server_process_result.is_some());

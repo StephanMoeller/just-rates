@@ -24,8 +24,14 @@ fn main() -> std::io::Result<()> {
 
     // Incoming udp => publisher channel
     std::thread::spawn(move || loop {
-        let publish_message = app::read_next_publisher_data_message(&udp_socket).unwrap();
-        publisher_channel.0.send(publish_message).unwrap();
+        let publish_result = app::read_next_publisher_data_message(&udp_socket).unwrap();
+        match publish_result
+        {
+            Some(publish_message) => {
+                publisher_channel.0.send(publish_message).unwrap();
+            },
+            None => {}
+        }
     });
 
     // Websocket event => websocket channel

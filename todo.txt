@@ -1,4 +1,2 @@
 
-- Lad publisher_tick metode returnere Result<Option<DataMessage>>
-- Flyt test af metoden ind i ved siden af selve koden, da det reelt er en unittest
 - Saml Event og DataMessage i een besked-type så main-tråden kan blokkere til der er ngoet at processere

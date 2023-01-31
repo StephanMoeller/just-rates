@@ -4,7 +4,6 @@ use std::str;
 const BUFFER_SIZE: usize = 10000;
 
 // Protocol
-
 pub fn read_next_publisher_data_message(local_socket: &UdpSocket) -> std::io::Result<Option<PublisherMessage>> {
     // TODO: Solve reuse of this buffer
     let mut buffer: [u8; 10000] = [0; BUFFER_SIZE];
@@ -72,3 +71,4 @@ fn send_reply_to_client(message: String, client_addr: &SocketAddr, local_socket:
 pub struct PublisherMessage{
     pub payload: String
 }
+

@@ -6,12 +6,12 @@ extern crate ctrlc;
 mod app;
 
 fn main() -> std::io::Result<()> {
-    // This channel is the glue between udp listener and tcp sender
-    let publisher_channel: (
-        Sender<app::PublisherMessage>,
-        Receiver<app::PublisherMessage>,
-    ) = mpsc::channel();
-    let websocket_event_channel: (Sender<Event>, Receiver<Event>) = mpsc::channel();
+    enum ChannelMessage {
+        Event(Event),
+        PublisherMessage(app::PublisherMessage),
+    }
+
+    let (tx, rx): (Sender<ChannelMessage>, Receiver<ChannelMessage>) = mpsc::channel();
 
     let udp_addr = "127.0.0.1:8343";
     let websocket_port = 8081;
@@ -22,30 +22,36 @@ fn main() -> std::io::Result<()> {
         ("failed to listen on websocket port ".to_string() + &websocket_port.to_string()).as_str(),
     );
 
-    // Incoming udp => publisher channel
+    // Publisher message => Channel
+    let publisher_tx = tx.clone();
     std::thread::spawn(move || loop {
-        let publish_result = app::read_next_publisher_data_message(&udp_socket).unwrap();
-        match publish_result
-        {
-            Some(publish_message) => {
-                publisher_channel.0.send(publish_message).unwrap();
-            },
-            None => {}
+        loop {
+            let publish_result = app::read_next_publisher_data_message(&udp_socket).unwrap();
+            if publish_result.is_some() {
+                let channel_msg = ChannelMessage::PublisherMessage(publish_result.unwrap());
+                publisher_tx.send(channel_msg).unwrap();
+            }
         }
     });
 
-    // Websocket event => websocket channel
+    // Websocket events => Channel
+    let websocket_tx = tx.clone();
     std::thread::spawn(move || loop {
-        let event = websocket_event_hub.poll_event();
-        websocket_event_channel.0.send(event).unwrap();
+        loop {
+            let event = websocket_event_hub.poll_event();
+            let channel_msg = ChannelMessage::Event(event);
+            websocket_tx.send(channel_msg).unwrap();
+        }
     });
 
+    // Process both types of events synchronously
     let mut websocket_clients: HashMap<u64, Responder> = HashMap::new();
     loop {
-        // Websocket channel => adjust client dictionary
-        let mut next_websocket_event = websocket_event_channel.1.try_recv();
-        while next_websocket_event.is_ok() {
-            match next_websocket_event.unwrap() {
+        match rx.recv().unwrap() {
+            ChannelMessage::PublisherMessage(msg) => {
+                // TODO: Send to all websocket clients
+            },
+            ChannelMessage::Event(event) => match event {
                 Event::Connect(client_id, responder) => {
                     websocket_clients.insert(client_id, responder);
                     println!("A client connected with id #{}", client_id);
@@ -60,15 +66,7 @@ fn main() -> std::io::Result<()> {
                         client_id, message
                     );
                 }
-            }
-            next_websocket_event = websocket_event_channel.1.try_recv();
-        }
-
-        // Publisher channel => send to all web socket clients
-        let mut next_publisher_event = publisher_channel.1.try_recv();
-        while next_publisher_event.is_ok() {
-            // TODO: Send to all websocket clients
-            next_publisher_event = publisher_channel.1.try_recv();
+            },
         }
     }
 }

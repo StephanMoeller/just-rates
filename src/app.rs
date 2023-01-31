@@ -127,7 +127,7 @@ pub fn read_next_publisher_data_message(
             // => If success, add to channel sender
             // => If error, return error to client
         }
-        "PING" => {
+        "GET_SUBSCRIBER_COUNT" => {
             let has_payload = payload_or_empty.len() > 0;
             if has_payload {
                 send_reply_to_client(
@@ -136,11 +136,11 @@ pub fn read_next_publisher_data_message(
                     &local_socket,
                 )?;
             } else {
-                send_reply_to_client("PONG".to_string(), &client_addr, &local_socket)?;
+                send_reply_to_client("SUBSCRIBER_COUNT 0".to_string(), &client_addr, &local_socket)?;
             }
             return Ok(None);
         }
-        "PONG" | "ERROR" => {
+        "SUBSCRIBER_COUNT" | "ERROR" => {
             send_reply_to_client(
                 "ERROR Client not allowed to send command ".to_string() + command,
                 &client_addr,

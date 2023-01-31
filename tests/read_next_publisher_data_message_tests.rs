@@ -11,11 +11,9 @@ mod tests {
     #[case("INVALID MESSAGE HERE", "ERROR Unexpected protocol command: INVALID")]
     #[case("ERROR", "ERROR Client not allowed to send command ERROR")]                        
     #[case("ERROR With more data", "ERROR Client not allowed to send command ERROR")]         
-    #[case("PONG", "ERROR Client not allowed to send command PONG")]                         
-    #[case("PONG With more data", "ERROR Client not allowed to send command PONG")]          
-    #[case("PING With more data", "ERROR Unexpected payload for command PING: With more data")]          
-    #[case("Ping", "ERROR Unexpected protocol command: Ping")]                         
-    #[case("ping", "ERROR Unexpected protocol command: ping")]    
+    #[case("SUBSCRIBER_COUNT", "ERROR Client not allowed to send command SUBSCRIBER_COUNT")]                         
+    #[case("SUBSCRIBER_COUNT With more data", "ERROR Client not allowed to send command SUBSCRIBER_COUNT")]          
+    #[case("Get_SUBSCRIBER_COUNT", "ERROR Unexpected protocol command: Get_SUBSCRIBER_COUNT")]                         
     #[case("DATA", "ERROR Empty payload received after a DATA command which is not valid.")]                                       
     #[case("Data", "ERROR Unexpected protocol command: Data")]                         
     #[case("DATA ", "ERROR Empty payload received after a DATA command which is not valid.")]           
@@ -67,7 +65,7 @@ mod tests {
         let (client_socket, server_socket, mut reusable_buffer) = (create_socket_with_receive_timeout(), create_socket_with_receive_timeout(), [0; 10000]);
         
         // Execute
-        client_socket.send_to("PING".as_bytes(), server_socket.local_addr().unwrap()).unwrap();
+        client_socket.send_to("GET_SUBSCRIBER_COUNT".as_bytes(), server_socket.local_addr().unwrap()).unwrap();
         let server_process_result = app::read_next_publisher_data_message(&server_socket, &mut reusable_buffer).unwrap();
 
         // Assert no new data message
@@ -75,7 +73,7 @@ mod tests {
 
         // Assert expected reply sent to client
         let reply = receive_string(&client_socket);
-        assert_eq!("PONG", reply.as_str());
+        assert_eq!("SUBSCRIBER_COUNT 0", reply.as_str());
     }
 
     #[test]

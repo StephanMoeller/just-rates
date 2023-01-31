@@ -10,13 +10,18 @@ fn main() -> std::io::Result<()> {
     let websocket_tcp_port: i32 = 8081;
 
     // Serve static html file on seperate port
-    let tcp_listener = TcpListener::bind("127.0.0.1:8082").unwrap();
+    start_http_server_to_server_index_html_file();
 
+    // Actual application
+    app::run(publisher_udp_port, websocket_tcp_port).unwrap();
+    return Ok(());
+}
+
+fn start_http_server_to_server_index_html_file(){
+    let tcp_listener = TcpListener::bind("127.0.0.1:8082").unwrap();
     std::thread::spawn(move || loop {
         let (mut client_stream, _client_addr) = tcp_listener.accept().unwrap();
-
         let mut buffer: [u8; 10000] = [0; 10000];
-
         let http_response = create_http_response("src/webclient/index.html");
 
         let byte_count = client_stream.read(&mut buffer).unwrap();
@@ -24,10 +29,6 @@ fn main() -> std::io::Result<()> {
         client_stream.write(http_response.as_bytes()).unwrap();
         client_stream.flush().unwrap();
     });
-
-    // Actual application
-    app::run(publisher_udp_port, websocket_tcp_port).unwrap();
-    return Ok(());
 }
 
 fn _start_client_spammer(publisher_udp_port: i32)

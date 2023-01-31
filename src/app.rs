@@ -90,11 +90,7 @@ pub fn read_next_publisher_data_message(
     let valid_utf_string = match str::from_utf8(&received_bytes) {
         Ok(str) => str,
         Err(err) => {
-            send_reply_to_client(
-                "ERROR Invalid utf8 bytes. Error details: ".to_string() + &err.to_string(),
-                &client_addr,
-                &local_socket,
-            )?;
+            send_reply_to_client("ERROR Invalid utf8 bytes. Error details: ".to_string() + &err.to_string(), &client_addr, &local_socket)?;
             return Ok(None);
         }
     };
@@ -112,12 +108,7 @@ pub fn read_next_publisher_data_message(
     match command {
         "DATA" => {
             if payload_or_empty.len() == 0 {
-                send_reply_to_client(
-                    "ERROR Empty payload received after a DATA command which is not valid."
-                        .to_string(),
-                    &client_addr,
-                    &local_socket,
-                )?;
+                send_reply_to_client("ERROR Empty payload received after a DATA command which is not valid.".to_string(), &client_addr, &local_socket)?;
             } else {
                 return Ok(Some(PublisherMessage {
                     payload: payload_or_empty.to_string(),
@@ -131,30 +122,18 @@ pub fn read_next_publisher_data_message(
         "GET_SUBSCRIBER_COUNT" => {
             let has_payload = payload_or_empty.len() > 0;
             if has_payload {
-                send_reply_to_client(
-                    "ERROR Unexpected payload for command PING: ".to_string() + &payload_or_empty,
-                    &client_addr,
-                    &local_socket,
-                )?;
+                send_reply_to_client("ERROR Unexpected payload for command PING: ".to_string() + &payload_or_empty, &client_addr, &local_socket)?;
             } else {
                 send_reply_to_client(format!("SUBSCRIBER_COUNT {subscriber_count}").to_string(), &client_addr, &local_socket)?;
             }
             return Ok(None);
         }
         "SUBSCRIBER_COUNT" | "ERROR" => {
-            send_reply_to_client(
-                "ERROR Client not allowed to send command ".to_string() + command,
-                &client_addr,
-                &local_socket,
-            )?;
+            send_reply_to_client("ERROR Client not allowed to send command ".to_string() + command, &client_addr, &local_socket)?;
             return Ok(None);
         }
         _ => {
-            send_reply_to_client(
-                "ERROR Unexpected protocol command: ".to_string() + command,
-                &client_addr,
-                &local_socket,
-            )?;
+            send_reply_to_client("ERROR Unexpected protocol command: ".to_string() + command, &client_addr, &local_socket)?;
             return Ok(None);
         }
     };

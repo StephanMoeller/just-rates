@@ -29,9 +29,23 @@ pub fn run(publisher_udp_port: i32, websocket_tcp_port: i32) -> std::io::Result<
 
     // PROCESS both types of events synchronously
     let mut websocket_clients: HashMap<u64, simple_websockets::Responder> = HashMap::new();
+    let mut rate_counter = 0;
+    let mut last_reset_time = std::time::Instant::now();
+
     loop {
+        rate_counter += 1;
+        let duration_secs = last_reset_time.elapsed().as_millis();
+        if duration_secs > 1000 {
+            println!("{}/sec", rate_counter);
+            last_reset_time = std::time::Instant::now();
+            rate_counter = 0;
+        }
         // Pause until next udp message received
-        let publish_message_or_none = read_next_publisher_data_message(&udp_socket, &mut reusable_buffer, websocket_clients.len())?;
+        let publish_message_or_none = read_next_publisher_data_message(
+            &udp_socket,
+            &mut reusable_buffer,
+            websocket_clients.len(),
+        )?;
 
         // Before processing the publish message, update the websocket list with any recent events
         let mut rx_result = rx.try_recv();
@@ -56,17 +70,16 @@ pub fn run(publisher_udp_port: i32, websocket_tcp_port: i32) -> std::io::Result<
         }
 
         // Now broad cast any publish message to all subscribers
-        match publish_message_or_none{
+        match publish_message_or_none {
             Some(publish_message) => {
                 for (_client_id, client_responder) in &websocket_clients {
-                    let _message_was_sent = client_responder.send(simple_websockets::Message::Text(
-                        publish_message.payload.clone(),
-                    ));
+                    let _message_was_sent = client_responder.send(
+                        simple_websockets::Message::Text(publish_message.payload.clone()),
+                    );
                 }
-            },
+            }
             None => {}
         }
-        
     }
 }
 

@@ -3,10 +3,9 @@ mod test_utils;
 #[cfg(test)]
 mod tests {
     use crate::test_utils::*;
-    use std::sync::mpsc::{Sender, Receiver};
-    use std::sync::mpsc;
-    use rust_just_rates::app::{PublisherMessage};
     use rstest::rstest;
+    use rust_just_rates::app;
+    use std::str;
 
     #[rstest]
     #[case("INVALID MESSAGE HERE", "ERROR Unexpected protocol command: INVALID MESSAGE HERE")]
@@ -22,63 +21,78 @@ mod tests {
     #[case("DATA ", "ERROR Empty payload received after a DATA command which is not valid.")]           
     fn invalid_message_expect_error_returned_test(#[case] invalid_message_to_send: &str, #[case] expected_message_to_receive: &str)
     {
-        let (data_message_sender, _data_message_receiver): (Sender<PublisherMessage>, Receiver<PublisherMessage>) = mpsc::channel();
-        let (server_addr, client_socket) = start_server_and_create_client_socket(data_message_sender);
+        // Init
+        let (client_socket, server_socket) = (create_socket_with_receive_timeout(), create_socket_with_receive_timeout());
+        
+        // Execute
+        client_socket.send_to(invalid_message_to_send.as_bytes(), server_socket.local_addr().unwrap()).unwrap();
+        let server_process_result = app::read_next_publisher_data_message(&server_socket).unwrap();
+        
+        // Assert no new data message
+        assert_eq!(true, server_process_result.is_none());
 
-        let reply = send_and_receive_internal(&client_socket, server_addr, invalid_message_to_send.as_bytes());
-        assert_eq!(reply.as_str(), expected_message_to_receive);
-
-        // Ensure nothing added to the reader
-        assert_channel_empty(_data_message_receiver);
+        // Assert expected reply sent to client
+        let reply = receive_string(&client_socket);
+        assert_eq!(true, server_process_result.is_none()); // Expect no data message returned
+        assert_eq!(expected_message_to_receive, reply);
     }
 
     #[test]
     fn invalid_utf8_characters_expect_error_returned_test()
     {
-        let (data_message_sender, _data_message_receiver): (Sender<PublisherMessage>, Receiver<PublisherMessage>) = mpsc::channel();
-
-        let (server_addr, client_socket) = start_server_and_create_client_socket(data_message_sender);
-        
+        // Init
+        let (client_socket, server_socket) = (create_socket_with_receive_timeout(), create_socket_with_receive_timeout());
         let mut invalid_utf8_bytes = "DATA Something more".as_bytes().to_owned();
         invalid_utf8_bytes[6] = 147; // Invalid utf8-character
         invalid_utf8_bytes[7] = 147; // Invalid utf8-character
         invalid_utf8_bytes[8] = 147; // Invalid utf8-character
+
+        // Execute
+        client_socket.send_to(&invalid_utf8_bytes, server_socket.local_addr().unwrap()).unwrap();
+        let server_process_result = app::read_next_publisher_data_message(&server_socket).unwrap();
         
-        let reply = send_and_receive_internal(&client_socket, server_addr, &invalid_utf8_bytes);
-        assert_eq!("ERROR Invalid utf8 bytes. Error details: invalid utf-8 sequence of 1 bytes from index 6", reply.as_str());
-        assert_channel_empty(_data_message_receiver);
+        // Assert no new data message
+        assert_eq!(true, server_process_result.is_none());
+
+        // Assert expected reply sent to client
+        let reply = receive_string(&client_socket);
+        assert_eq!(true, server_process_result.is_none()); // Expect no data message returned
+        assert_eq!("ERROR Invalid utf8 bytes. Error details: invalid utf-8 sequence of 1 bytes from index 6", reply);
     }
 
     #[test]
     fn ping_expect_pong_returned_test()
     {
-        let (data_message_sender, _data_message_receiver): (Sender<PublisherMessage>, Receiver<PublisherMessage>) = mpsc::channel();
-
-        let (server_addr, client_socket) = start_server_and_create_client_socket(data_message_sender);
+        // Init
+        let (client_socket, server_socket) = (create_socket_with_receive_timeout(), create_socket_with_receive_timeout());
         
-        let reply = send_and_receive_internal(&client_socket, server_addr, "PING".as_bytes());
+        // Execute
+        client_socket.send_to("PING".as_bytes(), server_socket.local_addr().unwrap()).unwrap();
+        let server_process_result = app::read_next_publisher_data_message(&server_socket).unwrap();
+
+        // Assert no new data message
+        assert_eq!(true, server_process_result.is_none());
+
+        // Assert expected reply sent to client
+        let reply = receive_string(&client_socket);
         assert_eq!("PONG", reply.as_str());
-        assert_channel_empty(_data_message_receiver);
     }
 
     #[test]
     fn data_expect_message_ended_up_in_channel_test()
     {
-        let (data_message_sender, data_message_receiver): (Sender<PublisherMessage>, Receiver<PublisherMessage>) = mpsc::channel();
-        let (server_addr, client_socket) = start_server_and_create_client_socket(data_message_sender);
-        _ = &client_socket.send_to("DATA This is the data provided \n in multiple \n\r lines".as_bytes(), server_addr).unwrap();
-        _ = &client_socket.send_to("DATA This is another message".as_bytes(), server_addr).unwrap();
-
-        assert_eq!("This is the data provided \n in multiple \n\r lines", data_message_receiver.recv_timeout(std::time::Duration::from_secs(1)).unwrap().payload.as_str());
-        assert_eq!("This is another message", data_message_receiver.recv_timeout(std::time::Duration::from_secs(1)).unwrap().payload.as_str());
-
+        // Init
+        let (client_socket, server_socket) = (create_socket_with_receive_timeout(), create_socket_with_receive_timeout());
         
-        // Sleep and ensure nothing to be received on client socket
-        let mut buffer: [u8; 10] = [0; 10];
-        std::thread::sleep(std::time::Duration::from_millis(500));
-        match &client_socket.recv_from(&mut buffer) {
-            Ok(_) => panic!("Unexpected message received"),
-            Err(_) => {} // Expect error do occur as sending DATA should not trigger the server to reply with any message
-        }
+        // Execute
+        client_socket.send_to("DATA This is the data provided \n in multiple \n\r lines".as_bytes(), server_socket.local_addr().unwrap()).unwrap();
+        let server_process_result = app::read_next_publisher_data_message(&server_socket).unwrap();
+
+        // Assert data message returned
+        assert_eq!(true, server_process_result.is_some());
+        assert_eq!("This is the data provided \n in multiple \n\r lines", server_process_result.unwrap().payload.as_str());
+        
+        // Assert no reply sent on data messages
+        ensure_nothing_to_receive(&client_socket);
     }
 }

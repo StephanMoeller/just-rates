@@ -49,7 +49,6 @@ pub fn run(publisher_udp_port: i32, websocket_tcp_port: i32) -> std::io::Result<
     loop {
         match rx.recv().unwrap() {
             ChannelMessage::PublisherMessage(publisher_message) => {
-                println!("Processing message {}", publisher_message.payload);
                 // Send received message from publisher to all connected websocket clients
                 for (_client_id, client_responder) in &websocket_clients {
                     let _message_was_sent = client_responder.send(

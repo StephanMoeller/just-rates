@@ -10,6 +10,12 @@
   <script>
     let socket = new WebSocket("ws://127.0.0.1:8081");
 
+    function getTimestampInSeconds () {
+      return Math.floor(Date.now() / 1000)
+    }
+    var lastResetTime = getTimestampInSeconds();
+    var counter = 0;
+
     socket.onopen = function (e) {
       console.log("[open] Connection established");
       console.log("Sending to server");
@@ -17,7 +23,13 @@
     };
 
     socket.onmessage = function (event) {
-      console.log(`[message] Data received from server: ${event.data}`);
+      var currentTimeStamp = getTimestampInSeconds();
+      if(currentTimeStamp > lastResetTime){
+        lastResetTime = currentTimeStamp;
+        console.log(counter + "/sec");
+        counter = 0;
+      }
+      counter++;
     };
 
     socket.onclose = function (event) {

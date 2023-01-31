@@ -4,19 +4,12 @@ use std::str;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 
-pub fn run(publisher_udp_port: i32, websocket_tcp_port: i32) -> std::io::Result<()> {
+pub fn run(udp_socket: UdpSocket, websocket_event_hub: simple_websockets::EventHub) -> std::io::Result<()> {
     let mut reusable_buffer: [u8; 10000] = [0; 10000];
     let (tx, rx): (
         Sender<simple_websockets::Event>,
         Receiver<simple_websockets::Event>,
     ) = mpsc::channel();
-
-    // SETUP udp listening socket and websocket server
-    let udp_addr = format!("127.0.0.1:{publisher_udp_port}");
-    let udp_socket = std::net::UdpSocket::bind(&String::from(&udp_addr))
-        .expect(format!("Error binding udp on local address {udp_addr}").as_str());
-    let websocket_event_hub = simple_websockets::launch(8081)
-        .expect(format!("failed to listen on websocket port {websocket_tcp_port}").as_str());
 
     //  Websocket events => Channel
     let websocket_tx = tx.clone();
@@ -30,29 +23,13 @@ pub fn run(publisher_udp_port: i32, websocket_tcp_port: i32) -> std::io::Result<
     // PROCESS both types of events synchronously
     let mut websocket_clients: HashMap<u64, simple_websockets::Responder> = HashMap::new();
 
-    // PERF COUNTER
-    let mut rate_counter = 0;
-    let mut last_reset_time = std::time::Instant::now();
-
     loop {
-        // PERF COUNTER
-        rate_counter += 1;
-        let duration_secs = last_reset_time.elapsed().as_millis();
-        if duration_secs > 1000 {
-            println!("{}/sec", rate_counter);
-            last_reset_time = std::time::Instant::now();
-            rate_counter = 0;
-        }
+        
+        // Receive next UDP message
+        let (byte_count, client_addr) = &udp_socket.recv_from(&mut reusable_buffer)?; // <If this fails, let entire flow fail.
+        let received_bytes = &mut reusable_buffer[..byte_count.to_owned()];
 
-
-        // Pause until next udp message received
-        let publish_message_or_none = read_next_publisher_data_message(
-            &udp_socket,
-            &mut reusable_buffer,
-            websocket_clients.len(),
-        )?;
-
-        // Before processing the publish message, update the websocket list with any recent events
+        // Before processing, handle all websocket events first to be sure to be in sync
         let mut rx_result = rx.try_recv();
         while rx_result.is_ok() {
             match rx_result.unwrap() {
@@ -74,6 +51,14 @@ pub fn run(publisher_udp_port: i32, websocket_tcp_port: i32) -> std::io::Result<
             rx_result = rx.try_recv();
         }
 
+        // Pause until next udp message received
+        let publish_message_or_none = read_next_publisher_data_message(
+            &udp_socket,
+            received_bytes,
+            client_addr,
+            websocket_clients.len(),
+        )?;
+
         // Now broad cast any publish message to all subscribers
         match publish_message_or_none {
             Some(publish_message) => {
@@ -90,22 +75,16 @@ pub fn run(publisher_udp_port: i32, websocket_tcp_port: i32) -> std::io::Result<
 
 pub fn read_next_publisher_data_message(
     local_socket: &UdpSocket,
-    reusable_buffer: &mut [u8],
+    received_bytes: &mut [u8],
+    client_addr: &SocketAddr,
     subscriber_count: usize,
 ) -> std::io::Result<Option<PublisherMessage>> {
-    // Receive next udp datagram
-    let (byte_count, client_addr) = local_socket.recv_from(reusable_buffer)?; // <If this fails, let entire flow fail.
-    let received_bytes = &mut reusable_buffer[..byte_count];
-
+    
     // Validate bytes as valid utf8
     let valid_utf_string = match str::from_utf8(&received_bytes) {
         Ok(str) => str,
         Err(err) => {
-            send_reply_to_client(
-                "ERROR Invalid utf8 bytes. Error details: ".to_string() + &err.to_string(),
-                &client_addr,
-                &local_socket,
-            )?;
+            send_reply_to_client("ERROR Invalid utf8 bytes. Error details: ".to_string() + &err.to_string(), &client_addr, &local_socket)?;
             return Ok(None);
         }
     };

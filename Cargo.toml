@@ -12,3 +12,5 @@ simple-websockets = "*"
 
 [dev-dependencies]
 rstest = "0.16.0"
+tungstenite = {version = "0.16.0", features = ["native-tls"]}
+url = "2.2.2"

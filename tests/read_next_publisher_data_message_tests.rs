@@ -24,7 +24,7 @@ mod tests {
         
         // Execute
         client_socket.send_to(invalid_message_to_send.as_bytes(), server_socket.local_addr().unwrap()).unwrap();
-        let server_process_result = app::read_next_publisher_data_message(&server_socket, &mut reusable_buffer).unwrap();
+        let server_process_result = app::read_next_publisher_data_message(&server_socket, &mut reusable_buffer, 17).unwrap();
         
         // Assert no new data message
         assert_eq!(true, server_process_result.is_none());
@@ -47,7 +47,7 @@ mod tests {
 
         // Execute
         client_socket.send_to(&invalid_utf8_bytes, server_socket.local_addr().unwrap()).unwrap();
-        let server_process_result = app::read_next_publisher_data_message(&server_socket, &mut reusable_buffer).unwrap();
+        let server_process_result = app::read_next_publisher_data_message(&server_socket, &mut reusable_buffer, 17).unwrap();
         
         // Assert no new data message
         assert_eq!(true, server_process_result.is_none());
@@ -66,14 +66,14 @@ mod tests {
         
         // Execute
         client_socket.send_to("GET_SUBSCRIBER_COUNT".as_bytes(), server_socket.local_addr().unwrap()).unwrap();
-        let server_process_result = app::read_next_publisher_data_message(&server_socket, &mut reusable_buffer).unwrap();
+        let server_process_result = app::read_next_publisher_data_message(&server_socket, &mut reusable_buffer, 17).unwrap();
 
         // Assert no new data message
         assert_eq!(true, server_process_result.is_none());
 
         // Assert expected reply sent to client
         let reply = receive_string(&client_socket);
-        assert_eq!("SUBSCRIBER_COUNT 0", reply.as_str());
+        assert_eq!("SUBSCRIBER_COUNT 17", reply.as_str());
     }
 
     #[test]
@@ -84,7 +84,7 @@ mod tests {
         
         // Execute
         client_socket.send_to("DATA This is the data provided \n in multiple \n\r lines".as_bytes(), server_socket.local_addr().unwrap()).unwrap();
-        let server_process_result = app::read_next_publisher_data_message(&server_socket, &mut reusable_buffer).unwrap();
+        let server_process_result = app::read_next_publisher_data_message(&server_socket, &mut reusable_buffer, 17).unwrap();
 
         // Assert data message returned
         assert_eq!(true, server_process_result.is_some());

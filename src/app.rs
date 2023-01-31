@@ -26,7 +26,7 @@ pub fn run(publisher_udp_port: i32, websocket_tcp_port: i32) -> std::io::Result<
     let publisher_tx = tx.clone();
     std::thread::spawn(move || loop {
         loop {
-            let publish_result = read_next_publisher_data_message(&udp_socket, &mut reusable_buffer).unwrap();
+            let publish_result = read_next_publisher_data_message(&udp_socket, &mut reusable_buffer, 17).unwrap();
             if publish_result.is_some() {
                 let channel_msg = ChannelMessage::PublisherMessage(publish_result.unwrap());
                 publisher_tx.send(channel_msg).unwrap();
@@ -80,6 +80,7 @@ pub fn run(publisher_udp_port: i32, websocket_tcp_port: i32) -> std::io::Result<
 pub fn read_next_publisher_data_message(
     local_socket: &UdpSocket,
     reusable_buffer: &mut [u8],
+    subscriber_count: i32
 ) -> std::io::Result<Option<PublisherMessage>> {
     // Receive next udp datagram
     let (byte_count, client_addr) = local_socket.recv_from(reusable_buffer)?; // <If this fails, let entire flow fail.
@@ -136,7 +137,7 @@ pub fn read_next_publisher_data_message(
                     &local_socket,
                 )?;
             } else {
-                send_reply_to_client("SUBSCRIBER_COUNT 0".to_string(), &client_addr, &local_socket)?;
+                send_reply_to_client(format!("SUBSCRIBER_COUNT {subscriber_count}").to_string(), &client_addr, &local_socket)?;
             }
             return Ok(None);
         }

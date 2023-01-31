@@ -29,10 +29,13 @@ pub fn run(publisher_udp_port: i32, websocket_tcp_port: i32) -> std::io::Result<
 
     // PROCESS both types of events synchronously
     let mut websocket_clients: HashMap<u64, simple_websockets::Responder> = HashMap::new();
+
+    // PERF COUNTER
     let mut rate_counter = 0;
     let mut last_reset_time = std::time::Instant::now();
 
     loop {
+        // PERF COUNTER
         rate_counter += 1;
         let duration_secs = last_reset_time.elapsed().as_millis();
         if duration_secs > 1000 {
@@ -40,6 +43,8 @@ pub fn run(publisher_udp_port: i32, websocket_tcp_port: i32) -> std::io::Result<
             last_reset_time = std::time::Instant::now();
             rate_counter = 0;
         }
+
+
         // Pause until next udp message received
         let publish_message_or_none = read_next_publisher_data_message(
             &udp_socket,

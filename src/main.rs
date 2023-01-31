@@ -8,9 +8,6 @@ fn main() -> std::io::Result<()> {
     let publisher_udp_port: i32 = 11311;
     let websocket_tcp_port: i32 = 8081;
 
-    // Serve static html file on seperate port
-    _start_client_spammer(publisher_udp_port);
-    
     // Actual application
     app::run(publisher_udp_port, websocket_tcp_port).unwrap();
     return Ok(());

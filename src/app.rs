@@ -24,8 +24,7 @@ pub fn run(publisher_udp_port: i32, websocket_tcp_port: i32) -> std::io::Result<
     let publisher_tx = tx.clone();
     std::thread::spawn(move || loop {
         loop {
-            let publish_result =
-                read_next_publisher_data_message(&udp_socket, &mut reusable_buffer).unwrap();
+            let publish_result = read_next_publisher_data_message(&udp_socket, &mut reusable_buffer).unwrap();
             if publish_result.is_some() {
                 let channel_msg = ChannelMessage::PublisherMessage(publish_result.unwrap());
                 publisher_tx.send(channel_msg).unwrap();
@@ -48,6 +47,7 @@ pub fn run(publisher_udp_port: i32, websocket_tcp_port: i32) -> std::io::Result<
     loop {
         match rx.recv().unwrap() {
             ChannelMessage::PublisherMessage(publisher_message) => {
+                println!("Processing message {}", publisher_message.payload);
                 // Send received message from publisher to all connected websocket clients
                 for (_client_id, client_responder) in &websocket_clients {
                     let _message_was_sent = client_responder.send(

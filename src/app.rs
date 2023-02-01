@@ -150,6 +150,7 @@ pub fn read_next_publisher_data_message(
             return Ok(None);
         }
         _ => {
+            print!("HIT HERE!");
             send_reply_to_client(
                 "ERROR Unexpected protocol command: ".to_string() + command,
                 &client_addr,

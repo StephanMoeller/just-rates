@@ -12,9 +12,13 @@ pub fn create_socket_with_receive_timeout() -> UdpSocket{
 
 pub fn receive_string(socket: &UdpSocket) -> String{
     let mut buffer: [u8; 1000] = [0; 1000];
-    let (amt, _src) = socket.recv_from(&mut buffer).unwrap();
-    let reply = str::from_utf8(&buffer[..amt]).unwrap();
-    return reply.to_string();
+    match socket.recv_from(&mut buffer)
+    {
+        Ok((amt, _src)) => {
+            return str::from_utf8(&buffer[..amt]).unwrap().to_string();
+        }
+        Err(err) => panic!("Unexpected error receiving string: {}", err.to_string()) // Expected to fail
+    }
 }
 
 pub fn ensure_nothing_to_receive(socket: &UdpSocket)

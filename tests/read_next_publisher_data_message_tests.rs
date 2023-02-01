@@ -1,4 +1,4 @@
-mod test_utils;
+// mod test_utils;
 
 // #[cfg(test)]
 // mod tests {
@@ -6,34 +6,6 @@ mod test_utils;
 //     use rstest::rstest;
 //     use rust_just_rates::app;
 //     use std::str;
-
-//     #[rstest]
-//     #[case("INVALID MESSAGE HERE", "ERROR Unexpected protocol command: INVALID")]
-//     #[case("ERROR", "ERROR Client not allowed to send command ERROR")]                        
-//     #[case("ERROR With more data", "ERROR Client not allowed to send command ERROR")]         
-//     #[case("SUBSCRIBER_COUNT", "ERROR Client not allowed to send command SUBSCRIBER_COUNT")]                         
-//     #[case("SUBSCRIBER_COUNT With more data", "ERROR Client not allowed to send command SUBSCRIBER_COUNT")]          
-//     #[case("Get_SUBSCRIBER_COUNT", "ERROR Unexpected protocol command: Get_SUBSCRIBER_COUNT")]                         
-//     #[case("DATA", "ERROR Empty payload received after a DATA command which is not valid.")]                                       
-//     #[case("Data", "ERROR Unexpected protocol command: Data")]                         
-//     #[case("DATA ", "ERROR Empty payload received after a DATA command which is not valid.")]           
-//     fn invalid_message_expect_error_returned_test(#[case] invalid_message_to_send: &str, #[case] expected_message_to_receive: &str)
-//     {
-//         // Init
-//         let (client_socket, server_socket, mut reusable_buffer) = (create_socket_with_receive_timeout(), create_socket_with_receive_timeout(), [0; 10000]);
-        
-//         // Execute
-//         client_socket.send_to(invalid_message_to_send.as_bytes(), server_socket.local_addr().unwrap()).unwrap();
-//         let server_process_result = app::read_next_publisher_data_message(&server_socket, &mut reusable_buffer, 17).unwrap();
-        
-//         // Assert no new data message
-//         assert_eq!(true, server_process_result.is_none());
-
-//         // Assert expected reply sent to client
-//         let reply = receive_string(&client_socket);
-//         assert_eq!(true, server_process_result.is_none()); // Expect no data message returned
-//         assert_eq!(expected_message_to_receive, reply);
-//     }
 
 //     #[test]
 //     fn invalid_utf8_characters_expect_error_returned_test()

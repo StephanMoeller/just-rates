@@ -4,6 +4,7 @@ use std::net::{SocketAddr, UdpSocket};
 use std::str;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
+use std::sync::{Arc, Mutex};
 
 pub fn run(
     udp_socket: UdpSocket,
@@ -25,8 +26,8 @@ pub fn run(
     });
 
     // PROCESS both types of events synchronously
-    let mut websocket_clients: HashMap<u64, simple_websockets::Responder> = HashMap::new();
-
+    let mut websocket_clients: Arc<Mutex<HashMap<u64, simple_websockets::Responder>>> = Arc::new(Mutex::new(HashMap::new()));
+    
     loop {
         // Receive next UDP message
         let (byte_count, client_addr) = &udp_socket.recv_from(&mut reusable_buffer)?; // <If this fails, let entire flow fail.
@@ -37,11 +38,11 @@ pub fn run(
         while rx_result.is_ok() {
             match rx_result.unwrap() {
                 simple_websockets::Event::Connect(client_id, responder) => {
-                    websocket_clients.insert(client_id, responder);
+                    websocket_clients.lock().unwrap().insert(client_id, responder);
                     println!("A client connected with id #{}", client_id);
                 }
                 simple_websockets::Event::Disconnect(client_id) => {
-                    websocket_clients.remove(&client_id);
+                    websocket_clients.lock().unwrap().remove(&client_id);
                     println!("Client #{} disconnected.", client_id);
                 }
                 simple_websockets::Event::Message(client_id, message) => {
@@ -59,13 +60,16 @@ pub fn run(
             &udp_socket,
             received_bytes,
             client_addr,
-            websocket_clients.len(),
+            websocket_clients.lock().unwrap().len(),
         )?;
 
         // Now broad cast any publish message to all subscribers
         match publish_message_or_none {
             Some(publish_message) => {
-                for (_client_id, client_responder) in &websocket_clients {
+                let hashmap = websocket_clients.lock().unwrap();
+                let client_keys = hashmap.keys();
+                for key in client_keys {
+                    let client_responder = hashmap.get(key).unwrap();
                     let _message_was_sent = client_responder.send(
                         simple_websockets::Message::Text(publish_message.payload.clone()),
                     );

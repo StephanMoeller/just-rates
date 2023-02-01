@@ -102,7 +102,7 @@ mod tests {
     #[case(9016, "DATA","ERROR Empty payload received after a DATA command which is not valid.")]
     #[case(9017, "Data", "ERROR Unexpected protocol command: Data")]
     #[case(9018, "DATA ","ERROR Empty payload received after a DATA command which is not valid.")]
-    fn invalid_message_expect_error_returned_test(
+    fn publisher_sends_invalid_message_expect_error_returned_test(
         #[case] websocket_server_port: u16,
         #[case] invalid_message_to_send: &str,
         #[case] expected_message_to_receive: &str,
@@ -120,5 +120,29 @@ mod tests {
 
         // Assert expected reply sent to client
         assert_eq!(expected_message_to_receive, reply);
+    }
+
+    #[test]
+    fn publisher_sends_invalid_utf8_characters_expect_error_returned_test()
+    {
+        // Init
+        let (udp_socket, server_udp_endpoint, websocket_event_hub, _server_websocket_endpoint) = init(9020);
+        let publisher_client = create_socket_with_receive_timeout();
+        
+        std::thread::spawn(|| {
+            app::run(udp_socket, websocket_event_hub).unwrap();
+        });
+
+        let mut invalid_utf8_bytes = "DATA Something more".as_bytes().to_owned();
+        invalid_utf8_bytes[6] = 147; // Invalid utf8-character
+        invalid_utf8_bytes[7] = 147; // Invalid utf8-character
+        invalid_utf8_bytes[8] = 147; // Invalid utf8-character
+
+        // Execute
+        publisher_client.send_to(&invalid_utf8_bytes, server_udp_endpoint).unwrap();
+        
+        // Assert expected reply sent to client
+        let reply = receive_string(&publisher_client);
+        assert_eq!("ERROR Invalid utf8 bytes. Error details: invalid utf-8 sequence of 1 bytes from index 6", reply);
     }
 }

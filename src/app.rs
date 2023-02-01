@@ -1,10 +1,14 @@
+
 use std::collections::HashMap;
 use std::net::{SocketAddr, UdpSocket};
 use std::str;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 
-pub fn run(udp_socket: UdpSocket, websocket_event_hub: simple_websockets::EventHub) -> std::io::Result<()> {
+pub fn run(
+    udp_socket: UdpSocket,
+    websocket_event_hub: simple_websockets::EventHub,
+) -> std::io::Result<()> {
     let mut reusable_buffer: [u8; 10000] = [0; 10000];
     let (tx, rx): (
         Sender<simple_websockets::Event>,
@@ -24,7 +28,6 @@ pub fn run(udp_socket: UdpSocket, websocket_event_hub: simple_websockets::EventH
     let mut websocket_clients: HashMap<u64, simple_websockets::Responder> = HashMap::new();
 
     loop {
-        
         // Receive next UDP message
         let (byte_count, client_addr) = &udp_socket.recv_from(&mut reusable_buffer)?; // <If this fails, let entire flow fail.
         let received_bytes = &mut reusable_buffer[..byte_count.to_owned()];
@@ -79,12 +82,15 @@ pub fn read_next_publisher_data_message(
     client_addr: &SocketAddr,
     subscriber_count: usize,
 ) -> std::io::Result<Option<PublisherMessage>> {
-    
     // Validate bytes as valid utf8
     let valid_utf_string = match str::from_utf8(&received_bytes) {
         Ok(str) => str,
         Err(err) => {
-            send_reply_to_client("ERROR Invalid utf8 bytes. Error details: ".to_string() + &err.to_string(), &client_addr, &local_socket)?;
+            send_reply_to_client(
+                "ERROR Invalid utf8 bytes. Error details: ".to_string() + &err.to_string(),
+                &client_addr,
+                &local_socket,
+            )?;
             return Ok(None);
         }
     };

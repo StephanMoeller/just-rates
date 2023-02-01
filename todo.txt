@@ -1,6 +1,13 @@
 
-- Undgå allokation ved at indskyde func i udp læseren som kan skrive direkte til websockets
+- Kopier simple-websockets ned lokalt
+- Løs udfordringen
+- Lav pull request
+- Migrer alle tests til at være end-to-end tests
+
+- Kan vi undgå allokeringen ved at sende lånt String ind i en websocket message i stedet for en owned?
+- Omskriv app, så udp læses fra een tråd, websocket events håndteres af een tråd
 - Reducer data format, så der er et dictionary og referencer til indexes i stedet. Lav data formatet til json.
+
 - Find passende navn
 - Nuget Client
 - Graph UI

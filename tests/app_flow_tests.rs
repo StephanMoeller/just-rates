@@ -46,7 +46,7 @@ mod tests {
     }
 
     #[test]
-    fn run_with_subscribers_test() {
+    fn run_get_subscribers_test() {
         let (server_udp_socket, server_udp_endpoint, websocket_event_hub, server_websocket_endpoint) = init(9001);
 
         std::thread::spawn(|| {
@@ -90,6 +90,47 @@ mod tests {
         publisher_client_1.send_to("GET_SUBSCRIBER_COUNT".as_bytes(), &server_udp_endpoint).unwrap();
         let reply = receive_string(&publisher_client_1);
         assert_eq!("SUBSCRIBER_COUNT 0", reply);
+    }
+
+    #[test]
+    fn run_send_data_test() {
+        let (server_udp_socket, server_udp_endpoint, websocket_event_hub, server_websocket_endpoint) = init(9030);
+
+        std::thread::spawn(|| {
+            app::run(server_udp_socket, websocket_event_hub).unwrap();
+        });
+
+        let publisher_client_1 = create_socket_with_receive_timeout();
+        let publisher_client_2 = create_socket_with_receive_timeout();
+
+        // Ensure no subscribers
+        publisher_client_1.send_to("DATA Expect this to get lost as no consumer is yet connected".as_bytes(), &server_udp_endpoint).unwrap();
+
+        let (mut websocket_client_a, _response_a) = tungstenite::connect(Url::parse(server_websocket_endpoint.as_str()).unwrap()).expect("Can't connect");
+
+        publisher_client_1.send_to("DATA Packet 1-1".as_bytes(), &server_udp_endpoint).unwrap();
+        publisher_client_2.send_to("DATA Packet 2-1".as_bytes(), &server_udp_endpoint).unwrap();
+        publisher_client_1.send_to("DATA Packet 1-2".as_bytes(), &server_udp_endpoint).unwrap();
+
+        let (mut websocket_client_b, _response_b) = tungstenite::connect(Url::parse(server_websocket_endpoint.as_str()).unwrap()).expect("Can't connect");
+
+        publisher_client_1.send_to("DATA Packet 1-3".as_bytes(), &server_udp_endpoint).unwrap();
+        publisher_client_2.send_to("DATA Packet 2-2".as_bytes(), &server_udp_endpoint).unwrap();
+        
+        // Expect nothing sent to the publishing clients by now (in case of errors, they might get some error info in a reply)
+        ensure_nothing_to_receive(&publisher_client_1);
+        ensure_nothing_to_receive(&publisher_client_2);
+
+        assert_eq!("Packet 1-1", websocket_client_a.read_message().expect("expected a message").to_text().unwrap());
+        assert_eq!("Packet 2-1", websocket_client_a.read_message().expect("expected a message").to_text().unwrap());
+        assert_eq!("Packet 1-2", websocket_client_a.read_message().expect("expected a message").to_text().unwrap());
+        assert_eq!("Packet 1-3", websocket_client_a.read_message().expect("expected a message").to_text().unwrap());
+        assert_eq!("Packet 2-2", websocket_client_a.read_message().expect("expected a message").to_text().unwrap());
+
+        assert_eq!("Packet 1-3", websocket_client_b.read_message().expect("expected a message").to_text().unwrap());
+        assert_eq!("Packet 2-2", websocket_client_b.read_message().expect("expected a message").to_text().unwrap());
+        
+        std::thread::sleep(std::time::Duration::from_millis(250));
     }
 
     #[rstest]

@@ -6,14 +6,21 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
 
+enum JustRateAction
+{
+    AddClient(u64, simple_websockets::Responder),
+    RemoveClient(u64),
+    BroadCastMessageToAllClients(PublisherMessage)
+}
+
 pub fn run(
     udp_socket: UdpSocket,
     websocket_event_hub: simple_websockets::EventHub,
 ) -> std::io::Result<()> {
     let mut reusable_buffer: [u8; 10000] = [0; 10000];
     let (tx, rx): (
-        Sender<simple_websockets::Event>,
-        Receiver<simple_websockets::Event>,
+        Sender<JustRateAction>,
+        Receiver<JustRateAction>,
     ) = mpsc::channel();
 
     //  Websocket events => Channel
@@ -21,28 +28,13 @@ pub fn run(
     std::thread::spawn(move || loop {
         loop {
             let event = websocket_event_hub.poll_event();
-            websocket_tx.send(event).unwrap();
-        }
-    });
-
-    // PROCESS both types of events synchronously
-    let mut websocket_clients: Arc<Mutex<HashMap<u64, simple_websockets::Responder>>> = Arc::new(Mutex::new(HashMap::new()));
-    
-    loop {
-        // Receive next UDP message
-        let (byte_count, client_addr) = &udp_socket.recv_from(&mut reusable_buffer)?; // <If this fails, let entire flow fail.
-        let received_bytes = &mut reusable_buffer[..byte_count.to_owned()];
-
-        // Before processing, handle all websocket events first to be sure to be in sync
-        let mut rx_result = rx.try_recv();
-        while rx_result.is_ok() {
-            match rx_result.unwrap() {
+            match event {
                 simple_websockets::Event::Connect(client_id, responder) => {
-                    websocket_clients.lock().unwrap().insert(client_id, responder);
+                    websocket_tx.send(JustRateAction::AddClient(client_id, responder)).expect("Sending Connect to websocket_tx failed");
                     println!("A client connected with id #{}", client_id);
                 }
                 simple_websockets::Event::Disconnect(client_id) => {
-                    websocket_clients.lock().unwrap().remove(&client_id);
+                    websocket_tx.send(JustRateAction::RemoveClient(client_id)).expect("Sending Disconnect to websocket_tx failed");
                     println!("Client #{} disconnected.", client_id);
                 }
                 simple_websockets::Event::Message(client_id, message) => {
@@ -52,31 +44,63 @@ pub fn run(
                     );
                 }
             }
-            rx_result = rx.try_recv();
         }
+    });
+
+    let subscriber_count = Arc::new(Mutex::new(0));
+    let subscriber_count_clone = Arc::clone(&subscriber_count);
+
+    // PROCESS both types of events synchronously
+    let udp_receive_tx = tx.clone();
+    std::thread::spawn(move || loop {
+        // Handle next udp receive
+        let (byte_count, client_addr) = &udp_socket.recv_from(&mut reusable_buffer).expect("Udp receive failed"); // <If this fails, let entire flow fail.
+        let received_bytes = &mut reusable_buffer[..byte_count.to_owned()];
 
         // Pause until next udp message received
         let publish_message_or_none = read_next_publisher_data_message(
             &udp_socket,
             received_bytes,
             client_addr,
-            websocket_clients.lock().unwrap().len(),
-        )?;
+            &subscriber_count_clone,
+        ).unwrap();
 
         // Now broad cast any publish message to all subscribers
         match publish_message_or_none {
             Some(publish_message) => {
-                let hashmap = websocket_clients.lock().unwrap();
-                let client_keys = hashmap.keys();
+                udp_receive_tx.send(JustRateAction::BroadCastMessageToAllClients(publish_message)).unwrap();
+            }
+            None => {}
+        }
+    });
+
+    let mut websocket_clients: HashMap<u64, simple_websockets::Responder> = HashMap::new();
+    loop {
+        
+        match rx.recv().unwrap() {
+            JustRateAction::AddClient(client_id, responder) => {
+                println!("Inserting client_id {}", client_id);
+                websocket_clients.insert(client_id, responder);
+                let mut sub_count = subscriber_count.lock().expect("Lock failed in counting up");
+                *sub_count += 1;
+                println!("Sub count: {}", sub_count);
+            },
+            JustRateAction::RemoveClient(client_id) => {
+                websocket_clients.remove(&client_id);
+                let mut sub_count = subscriber_count.lock().expect("lock failed when counting down");
+                *sub_count -= 1;
+                println!("Sub count: {}", sub_count);
+            }
+            JustRateAction::BroadCastMessageToAllClients(publish_message) => {
+                let client_keys = websocket_clients.keys();
                 for key in client_keys {
-                    let client_responder = hashmap.get(key).unwrap();
+                    let client_responder = websocket_clients.get(key).unwrap();
                     let _message_was_sent = client_responder.send(
                         simple_websockets::Message::Text(publish_message.payload.clone()),
                     );
                 }
             }
-            None => {}
-        }
+        };
     }
 }
 
@@ -84,7 +108,7 @@ pub fn read_next_publisher_data_message(
     local_socket: &UdpSocket,
     received_bytes: &mut [u8],
     client_addr: &SocketAddr,
-    subscriber_count: usize,
+    subscriber_count: &Arc<Mutex<usize>>,
 ) -> std::io::Result<Option<PublisherMessage>> {
     // Validate bytes as valid utf8
     let valid_utf_string = match str::from_utf8(&received_bytes) {
@@ -137,8 +161,9 @@ pub fn read_next_publisher_data_message(
                     &local_socket,
                 )?;
             } else {
+                let sub_count = subscriber_count.lock().unwrap();
                 send_reply_to_client(
-                    format!("SUBSCRIBER_COUNT {subscriber_count}").to_string(),
+                    format!("SUBSCRIBER_COUNT {sub_count}").to_string(),
                     &client_addr,
                     &local_socket,
                 )?;

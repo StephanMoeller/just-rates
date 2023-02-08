@@ -2,13 +2,13 @@ mod test_utils;
 
 #[cfg(test)]
 mod tests {
-    use std::net::{ToSocketAddrs, UdpSocket};
+    use std::net::{UdpSocket};
 
     use crate::test_utils::*;
     use rstest::rstest;
     use rust_just_rates::app;
     use simple_websockets::EventHub;
-    use tungstenite::{connect, Message};
+    // use tungstenite::{connect, Message};
     use url::Url;
 
     fn init() -> (UdpSocket, std::net::SocketAddr, EventHub, String) {
@@ -67,10 +67,12 @@ mod tests {
         
         let (mut websocket_client_a, _response_a) = tungstenite::connect(Url::parse(server_websocket_endpoint.as_str()).unwrap()).expect("Can't connect");
         let (mut websocket_client_b, _response_b) = tungstenite::connect(Url::parse(server_websocket_endpoint.as_str()).unwrap()).expect("Can't connect");
+        std::thread::sleep(std::time::Duration::from_millis(500));
 
         // Now ensure 2 subscribers
         publisher_client_1.send_to("GET_SUBSCRIBER_COUNT".as_bytes(), &server_udp_endpoint).unwrap();
         let reply = receive_string(&publisher_client_1);
+
         assert_eq!("SUBSCRIBER_COUNT 2", reply);
 
         ensure_nothing_to_receive(&publisher_client_1);

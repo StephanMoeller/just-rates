@@ -11,9 +11,11 @@ mod tests {
     use tungstenite::{connect, Message};
     use url::Url;
 
-    fn init(websocket_port: u16) -> (UdpSocket, std::net::SocketAddr, EventHub, String) {
+    fn init() -> (UdpSocket, std::net::SocketAddr, EventHub, String) {
         let udp_socket = std::net::UdpSocket::bind(&String::from("127.0.0.1:0")).unwrap();
-        let websocket_event_hub = simple_websockets::launch(websocket_port).unwrap();
+        let tcp_listener = std::net::TcpListener::bind("0.0.0.0:0").unwrap();
+        let websocket_port = tcp_listener.local_addr().unwrap().port();
+        let websocket_event_hub = simple_websockets::launch_from_listener(tcp_listener).unwrap();
 
         let server_udp_endpoint = udp_socket.local_addr().unwrap();
 
@@ -21,7 +23,7 @@ mod tests {
     }
     #[test]
     fn run_no_subscribers_test() {
-        let (server_udp_socket, server_udp_endpoint, websocket_event_hub, _server_websocket_endpoint) = init(9000);
+        let (server_udp_socket, server_udp_endpoint, websocket_event_hub, _server_websocket_endpoint) = init();
         
         std::thread::spawn(|| {
             app::run(server_udp_socket, websocket_event_hub).unwrap();
@@ -47,7 +49,7 @@ mod tests {
 
     #[test]
     fn run_get_subscribers_test() {
-        let (server_udp_socket, server_udp_endpoint, websocket_event_hub, server_websocket_endpoint) = init(9001);
+        let (server_udp_socket, server_udp_endpoint, websocket_event_hub, server_websocket_endpoint) = init();
 
         std::thread::spawn(|| {
             app::run(server_udp_socket, websocket_event_hub).unwrap();
@@ -94,7 +96,7 @@ mod tests {
 
     #[test]
     fn run_send_data_test() {
-        let (server_udp_socket, server_udp_endpoint, websocket_event_hub, server_websocket_endpoint) = init(9030);
+        let (server_udp_socket, server_udp_endpoint, websocket_event_hub, server_websocket_endpoint) = init();
 
         std::thread::spawn(|| {
             app::run(server_udp_socket, websocket_event_hub).unwrap();
@@ -134,21 +136,20 @@ mod tests {
     }
 
     #[rstest]
-    #[case(9010, "INVALID MESSAGE HERE", "ERROR Unexpected protocol command: INVALID")]
-    #[case(9011, "ERROR", "ERROR Client not allowed to send command ERROR")]
-    #[case(9012, "ERROR With more data", "ERROR Client not allowed to send command ERROR")]
-    #[case(9013, "SUBSCRIBER_COUNT","ERROR Client not allowed to send command SUBSCRIBER_COUNT")]
-    #[case(9014, "SUBSCRIBER_COUNT With more data","ERROR Client not allowed to send command SUBSCRIBER_COUNT")]
-    #[case(9015, "Get_SUBSCRIBER_COUNT","ERROR Unexpected protocol command: Get_SUBSCRIBER_COUNT")]
-    #[case(9016, "DATA","ERROR Empty payload received after a DATA command which is not valid.")]
-    #[case(9017, "Data", "ERROR Unexpected protocol command: Data")]
-    #[case(9018, "DATA ","ERROR Empty payload received after a DATA command which is not valid.")]
+    #[case("INVALID MESSAGE HERE", "ERROR Unexpected protocol command: INVALID")]
+    #[case("ERROR", "ERROR Client not allowed to send command ERROR")]
+    #[case("ERROR With more data", "ERROR Client not allowed to send command ERROR")]
+    #[case("SUBSCRIBER_COUNT","ERROR Client not allowed to send command SUBSCRIBER_COUNT")]
+    #[case("SUBSCRIBER_COUNT With more data","ERROR Client not allowed to send command SUBSCRIBER_COUNT")]
+    #[case("Get_SUBSCRIBER_COUNT","ERROR Unexpected protocol command: Get_SUBSCRIBER_COUNT")]
+    #[case("DATA","ERROR Empty payload received after a DATA command which is not valid.")]
+    #[case("Data", "ERROR Unexpected protocol command: Data")]
+    #[case("DATA ","ERROR Empty payload received after a DATA command which is not valid.")]
     fn publisher_sends_invalid_message_expect_error_returned_test(
-        #[case] websocket_server_port: u16,
         #[case] invalid_message_to_send: &str,
         #[case] expected_message_to_receive: &str,
     ) {
-        let (udp_socket, server_udp_endpoint, websocket_event_hub, _server_websocket_endpoint) = init(websocket_server_port);
+        let (udp_socket, server_udp_endpoint, websocket_event_hub, _server_websocket_endpoint) = init();
         let publisher_client = create_socket_with_receive_timeout();
         
         std::thread::spawn(|| {
@@ -167,7 +168,7 @@ mod tests {
     fn publisher_sends_invalid_utf8_characters_expect_error_returned_test()
     {
         // Init
-        let (udp_socket, server_udp_endpoint, websocket_event_hub, _server_websocket_endpoint) = init(9020);
+        let (udp_socket, server_udp_endpoint, websocket_event_hub, _server_websocket_endpoint) = init();
         let publisher_client = create_socket_with_receive_timeout();
         
         std::thread::spawn(|| {
